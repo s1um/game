@@ -3,124 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <title>미니 게임 천국</title>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
     <style>
-        .container {
-            width: 1100px; 
-            margin: 0 auto;
-            display: flex;
-            margin-top: 50px;
-        }
 
-        .navi {
-            width: 200px; 
-            background-color: #fff;
-            border-right: 2px solid #ccc; 
-            padding-right: 20px;
-        }
-
-        .navi ul {
-            list-style: none;
-            padding: 0;
+        * {
+            box-sizing: border-box;
             margin: 0;
+            padding: 0;
         }
 
-        .navi ul li {
-            width: 100%; 
-            margin-bottom: 10px; 
+        body {
+            font-family: 'Jua', sans-serif; 
+            background-color: #1a1a2e; 
+            color: #fff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
-        .navi a:link, .navi a:visited {
-            display: block;
-            font-size: 16px;
-            font-weight: bold;
-            color: #000;
-            padding: 15px; 
-            text-decoration: none;
-            text-align: center; 
-            border: 1px solid #eee; 
-            border-radius: 10px; 
-            background-color: #f9f9f9;
-            transition: 0.3s;
+        header {
+            height: 80px;
+            background-color: #16213e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 40px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            border-bottom: 2px solid #0f3460;
+        }
+
+        .logo {
+            font-size: 32px;
+            color: #e94560; 
+            text-shadow: 0 0 10px rgba(233, 69, 96, 0.7);
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: transform 0.3s;
         }
         
-        .navi a:hover, .navi a:focus {
-            background-color: #222;
+        .logo:hover {
+            transform: scale(1.05);
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 20px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: #a0a0a0;
+            font-size: 20px;
+            padding: 10px 20px;
+            border-radius: 30px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        nav a:hover, nav a.active {
             color: #fff;
-            transform: translateX(5px); 
+            background-color: #0f3460;
+            border-color: #00ffcc; 
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
+            transform: translateY(-2px);
+        }
+                
+        main {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
         }
 
-        .navi a:active {
-            background-color: #f00;
-        }
-
-        #desp {
-            flex: 1; 
-            margin-left: 20px; 
-            border: 2px solid #ccc;
-            border-radius: 10px;
-            height: 600px; 
+        .screen-container {
+            width: 100%;
+            max-width: 1200px;
+            height: 100%;
+            background: #000;
+            border-radius: 15px;
+            border: 4px solid #333;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(0,0,0,0.5);
             overflow: hidden;
-            background: #f0f0f0;
+            position: relative;
         }
 
-        #gameFrame {
+        iframe {
             width: 100%;
             height: 100%;
             border: none;
             display: block;
         }
+
+        .footer-deco {
+            position: absolute;
+            bottom: 10px;
+            right: 20px;
+            font-size: 14px;
+            color: #555;
+            pointer-events: none;
+        }
+
     </style>
 </head>
 <body>
-    <div class="container">
-        <nav class="navi">
+
+    <header>
+        <div class="logo" onclick="loadGame('home', null)">👾 ARCADE ZONE</div>
+        <nav>
             <ul>
-                <li><a href="#" onclick="loadGame('home');">🏠 홈으로</a></li>
-                <li><a href="#" onclick="loadGame('apple');">🍎 사과 게임</a></li>
-                <li><a href="#" onclick="loadGame('breakout');">🧱 벽돌 깨기</a></li>
-                <li><a href="#" onclick="loadGame('snake');">🐍 Snake Game</a></li>
+                <li><a href="#" onclick="loadGame('home', this);" class="active">🏠 홈</a></li>
+                <li><a href="#" onclick="loadGame('apple', this);">🍎 사과게임</a></li>
+                <li><a href="#" onclick="loadGame('breakout', this);">🧱 벽돌깨기</a></li>
+                <li><a href="#" onclick="loadGame('snake', this);">🐍 뱀게임</a></li>
             </ul>
         </nav>
-        
-        <div id="desp">
-            <iframe id="gameFrame" src="about:blank"></iframe>
+    </header>
+
+    <main>
+        <div class="screen-container">
+            <iframe id="gameFrame" src="main.html" title="Game Screen"></iframe>
         </div>
-    </div>
+        <div class="footer-deco">READY PLAYER ONE</div>
+    </main>
 
     <script>
-        window.onload = function() {
+        function loadGame(gameType, element) {
             const frame = document.getElementById('gameFrame');
-            let doc = frame.contentDocument || frame.contentWindow.document;
-            doc.body.innerHTML = "<h1 style='text-align:center; margin-top:250px;'>게임을 선택해주세요!</h1>";
-        };
+            let targetSrc = "main.html"; 
 
-        function loadGame(gameType) {
-            const frame = document.getElementById('gameFrame');
+            if (gameType === 'apple') targetSrc = "apple.html";
+            else if (gameType === 'breakout') targetSrc = "Breakout.html";
+            else if (gameType === 'snake') targetSrc = "Snake Game.html";
+            
+            frame.src = targetSrc;
 
-            if (gameType === 'home') {
-                frame.src = "about:blank";
-                setTimeout(() => {
-                    let doc = frame.contentDocument || frame.contentWindow.document;
-                    doc.body.innerHTML = "<h1 style='text-align:center; margin-top:250px;'>환영합니다!</h1>";
-                }, 100);
-            } 
-            else if (gameType === 'apple') {
-                frame.src = "apple.html";
-            } 
-            else if (gameType === 'breakout') {
-                frame.src = "Breakout.html";
-            } 
-            else if (gameType === 'snake') {
-                frame.src = "Snake Game.html"; 
+            const links = document.querySelectorAll('nav a');
+            links.forEach(link => link.classList.remove('active'));
+            
+            if (element) {
+                element.classList.add('active');
+            } else if (gameType === 'home') {
+                links[0].classList.add('active');
             }
         }
 
         window.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
+            const menu = urlParams.get('menu');
             
-            if (urlParams.get('menu') === 'home') {
-                if (typeof loadGame === 'function') {
-                    loadGame('home');
+            if (menu) {
+                const targetLink = document.querySelector(`nav a[onclick*="'${menu}'"]`);
+                if (targetLink) {
+                    loadGame(menu, targetLink);
                 }
             }
         });
