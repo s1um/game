@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>사과 게임 (타이머 & 점수)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #info-bar {
+            display: flex;
+            gap: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .info-item {
+            background: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        #game-board {
+            display: grid;
+            gap: 5px;
+            border: 2px solid #333;
+            padding: 10px;
+            background-color: #fff;
+            position: relative;
+        }
+
+        .cell {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center; 
+            box-sizing: border-box;  
+            padding-top: 12px;
+            font-size: 22px;
+            font-weight: bold;
+            color: #333;
+            
+            background-image: url('apple.png'); 
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            border-radius: 15px;
+            cursor: crosshair; 
+        }
+
+        .cell.selected {
+            border: 3px solid #007bff;
+            transform: scale(1.1);
+            z-index: 1;
+        }
+
+        .cell.hidden {
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        #selection-box {
+            position: fixed;
+            border: 2px dashed #007bff;
+            background-color: rgba(0, 123, 255, 0.2);
+            display: none;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        #game-over-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); 
+            display: none; 
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+        }
+
+        #game-result-title {
+            font-size: 60px; 
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        #final-score {
+            font-size: 30px;
+            color: #ccc;
+            margin-bottom: 40px;
+        }
+
+        .action-btn {
+            font-size: 24px;
+            margin: 10px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        .action-btn:hover { transform: scale(1.1); }
+
+        #btn-restart { color: #4CAF50; background: white; }
+        #btn-home { color: #FF9800; background: white; }
+
+        .penalty-effect {
+            color: #ff0000 !important; 
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="info-bar">
+        <div class="info-item"> <span id="timer">02:00</span></div>
+        <div class="info-item"> <span id="score">0</span></div>
+    </div>
+    
+    <div id="game-board"></div>
+    <div id="selection-box"></div>
+
+    <div id="game-over-screen">
+        <div id="game-result-title">GAME OVER</div>
+        <div id="final-score">Final Score: 0</div>
+        
+        <button id="btn-restart" class="action-btn">Click to Restart</button>
+        <button id="btn-home" class="action-btn">Click to Go Home</button>
+    </div>
+
+    <script>
+        const ROWS = 10; 
+        const COLS = 15; 
+        const TARGET_SUM = 10;
+        const GAME_TIME = 120;
+       
+        const gameBoard = document.getElementById('game-board');
+        const selectionBox = document.getElementById('selection-box');
+        const timerEl = document.getElementById('timer');
+        const scoreEl = document.getElementById('score');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const resultTitle = document.getElementById('game-result-title');
+        const finalScoreEl = document.getElementById('final-score');
+
+        let cells = []; 
+        let isSelecting = false;
+        let startX = 0, startY = 0;
+        
+        let score = 0;
+        let timeLeft = GAME_TIME;
+        let timerInterval = null;
+        let isGameActive = true; 
+
+        function initGame() {
+            cells = [];
+            score = 0;
+            timeLeft = GAME_TIME;
+            isGameActive = true;
+            scoreEl.textContent = score;
+            gameBoard.innerHTML = '';
+            gameOverScreen.style.display = 'none'; 
+
+            gameBoard.style.gridTemplateColumns = `repeat(${COLS}, 50px)`;
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    
+                    const number = Math.floor(Math.random() * 9) + 1;
+                    cell.textContent = number;
+                    cell.dataset.value = number;
+                    
+                    gameBoard.appendChild(cell);
+                    cells.push(cell);
+                }
+            }
+
+            window.addEventListener('mousedown', onMouseDown);
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+
+            startTimer();
+        }
+
+        function startTimer() {
+            updateTimerDisplay();
+            
+            if (timerInterval) clearInterval(timerInterval);
+
+            timerInterval = setInterval(() => {
+                if (!isGameActive) {
+                    clearInterval(timerInterval);
+                    return;
+                }
+
+                timeLeft--;
+                updateTimerDisplay();
+
+                if (timeLeft <= 0) {
+                    endGame(false); 
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function endGame(isWin) {
+            isGameActive = false;
+            clearInterval(timerInterval);
+
+            resultTitle.textContent = isWin ? 'YOU WIN!' : 'GAME OVER';
+            finalScoreEl.textContent = `Final Score: ${score}`;
+            
+            document.body.style.backgroundColor = '#333'; 
+            gameOverScreen.style.display = 'flex';
+        }
+
+        function onMouseDown(e) {
+            if (!isGameActive) return;
+            
+            if (e.target.tagName === 'BUTTON') return;
+
+            isSelecting = true;
+            startX = e.clientX;
+            startY = e.clientY;
+
+            selectionBox.style.left = startX + 'px';
+            selectionBox.style.top = startY + 'px';
+            selectionBox.style.width = '0px';
+            selectionBox.style.height = '0px';
+            selectionBox.style.display = 'block';
+
+            cells.forEach(cell => cell.classList.remove('selected'));
+        }
+
+        function onMouseMove(e) {
+            if (!isSelecting || !isGameActive) return;
+
+            const currentX = e.clientX;
+            const currentY = e.clientY;
+
+            const width = Math.abs(currentX - startX);
+            const height = Math.abs(currentY - startY);
+            const left = Math.min(currentX, startX);
+            const top = Math.min(currentY, startY);
+
+            selectionBox.style.width = `${width}px`;
+            selectionBox.style.height = `${height}px`;
+            selectionBox.style.left = `${left}px`;
+            selectionBox.style.top = `${top}px`;
+
+            checkIntersections(left, top, width, height);
+        }
+
+        function onMouseUp(e) {
+            if (!isSelecting || !isGameActive) return;
+            isSelecting = false;
+            selectionBox.style.display = 'none';
+
+            const selected = cells.filter(cell => cell.classList.contains('selected'));
+            
+            if (selected.length === 0) return;
+
+            let sum = 0;
+            selected.forEach(cell => sum += parseInt(cell.dataset.value));
+
+            if (sum === TARGET_SUM) {
+                score += selected.length; 
+                scoreEl.textContent = score;
+
+                selected.forEach(cell => {
+                    cell.classList.remove('selected');
+                    cell.classList.add('hidden');
+                });
+
+            } else {
+                selected.forEach(cell => cell.classList.remove('selected'));
+
+                timeLeft -= 10;
+
+                if (timeLeft <= 0) {
+                    timeLeft = 0;
+                    updateTimerDisplay();
+                    endGame(false); 
+                    return;
+                }
+
+                updateTimerDisplay();
+                showPenaltyVisual(); 
+            }
+        }
+
+        function checkIntersections(boxX, boxY, boxW, boxH) {
+            const boxRight = boxX + boxW;
+            const boxBottom = boxY + boxH;
+
+            cells.forEach(cell => {
+                if (cell.classList.contains('hidden')) return;
+
+                const rect = cell.getBoundingClientRect();
+                const cellCenterX = rect.left + rect.width / 2;
+                const cellCenterY = rect.top + rect.height / 2;
+
+                if (cellCenterX >= boxX && cellCenterX <= boxRight &&
+                    cellCenterY >= boxY && cellCenterY <= boxBottom) {
+                    cell.classList.add('selected');
+                } else {
+                    cell.classList.remove('selected');
+                }
+            });
+        }
+
+        document.getElementById('btn-restart').addEventListener('click', () => {
+             location.reload(); 
+        });
+        
+        document.getElementById('btn-home').addEventListener('click', () => {
+            if (window.parent && typeof window.parent.loadGame === 'function') {
+                window.parent.loadGame('home');
+            } else {
+                window.location.href = 'index.html'; 
+            }
+        });
+
+        function showPenaltyVisual() {
+            const timerContainer = document.getElementById('timer').parentElement; // 타이머를 감싸는 div
+            
+            timerContainer.classList.add('penalty-effect');
+            
+            setTimeout(() => {
+                timerContainer.classList.remove('penalty-effect');
+            }, 500);
+        }
+
+        initGame();
+    </script>
+</body>
+</html>
